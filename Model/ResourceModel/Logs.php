@@ -8,7 +8,6 @@ use Magento\Framework\Stdlib\DateTime\DateTime;
 
 /**
  * Class Log
- * @package Meetanshi\SMTP\Model\ResourceModel
  */
 class Logs extends AbstractDb
 {

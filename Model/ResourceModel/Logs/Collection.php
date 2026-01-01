@@ -5,10 +5,6 @@ use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
 use Meetanshi\SMTP\Model\ResourceModel\Logs as ResLogs;
 use \Meetanshi\SMTP\Model\Logs as MLogs;
 
-/**
- * Class Collection
- * @package Meetanshi\SMTP\Model\ResourceModel\Log
- */
 class Collection extends AbstractCollection
 {
     /**
@@ -23,7 +19,7 @@ class Collection extends AbstractCollection
      */
     protected function _construct()
     {
-        $this->_init( MLogs::class, ResLogs::class);
+        $this->_init(MLogs::class, ResLogs::class);
     }
 
     /**

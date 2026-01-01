@@ -11,11 +11,6 @@ use Magento\Framework\View\Element\UiComponent\DataProvider\Document;
 use Meetanshi\SMTP\Model\ResourceModel\Logs\Collection as SMTPCollection;
 use Psr\Log\LoggerInterface;
 
-
-/**
- * Class Collection
- * @package Meetanshi\SMTP\Model\ResourceModel\Logs\Grid
- */
 class Collection extends SMTPCollection implements SearchResultInterface
 {
 
@@ -85,7 +80,7 @@ class Collection extends SMTPCollection implements SearchResultInterface
      * @return $this|SearchResultInterface
      */
     public function setSearchCriteria(
-        SearchCriteriaInterface $searchCriteria = null
+        ?SearchCriteriaInterface $searchCriteria = null
     ) {
         return $this;
     }
@@ -111,7 +106,7 @@ class Collection extends SMTPCollection implements SearchResultInterface
      * @param array|null $items
      * @return $this|SearchResultInterface
      */
-    public function setItems(array $items = null)
+    public function setItems(?array $items = null)
     {
         return $this;
     }

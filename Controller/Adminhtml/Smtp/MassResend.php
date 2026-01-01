@@ -10,10 +10,6 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Ui\Component\MassAction\Filter;
 use Meetanshi\SMTP\Model\ResourceModel\Logs\CollectionFactory;
 
-/**
- * Class MassResend
- * @package Magetop\Smtp\Controller\Adminhtml\Smtp
- */
 class MassResend extends Action
 {
     /**

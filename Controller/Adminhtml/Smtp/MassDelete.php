@@ -10,11 +10,6 @@ use Magento\Framework\Controller\ResultInterface;
 use Magento\Ui\Component\MassAction\Filter;
 use Meetanshi\SMTP\Model\ResourceModel\Logs\CollectionFactory;
 
-
-/**
- * Class MassDelete
- * @package Meetanshi\SMTP\Controller\Adminhtml\Smtp
- */
 class MassDelete extends Action
 {
     /**

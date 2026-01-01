@@ -16,10 +16,6 @@ use Meetanshi\SMTP\Mail\Rse\Mail;
 use Meetanshi\SMTP\Model\Source\Status;
 use Meetanshi\SMTP\Model\ResourceModel\Logs as ResLogs;
 
-/**
- * Class Logs
- * @package Meetanshi\SMTP\Model
- */
 class Logs extends AbstractModel
 {
     /**
@@ -54,8 +50,8 @@ class Logs extends AbstractModel
         TransportBuilder $transportBuilder,
         Mail $mailResource,
         Data $helper,
-        AbstractResource $resource = null,
-        AbstractDb $resourceCollection = null,
+        ?AbstractResource $resource = null,
+        ?AbstractDb $resourceCollection = null,
         array $data = []
     ) {
         parent::__construct($context, $registry, $resource, $resourceCollection, $data);
@@ -80,8 +76,38 @@ class Logs extends AbstractModel
      */
     public function saveLog($message, $status)
     {
+        if ($this->helper->versionCompare('2.4.8')) {
+            $headers = $message->getHeaders();
+            $headers = $headers->toArray();
+            if (isset($headers[0])) {
+                $this->setSubject(str_replace('Subject: ', '', $headers[0]));
+            }
 
-        if ($this->helper->versionCompare('2.2.8')) {
+            if (isset($headers[2])) {
+                $sender = $headers[2];
+                $sender = str_replace('From: ', '', $sender); // Remove 'From: ' prefix
+                preg_match('/^(.*?)(?:\s*<[^>]+>)?$/', $sender, $senderMatch);
+                $name = !empty($senderMatch[1]) ? trim($senderMatch[1]) : trim($sender);
+                preg_match('/<(.+?)>/', $sender, $emailMatch);
+                $email = !empty($emailMatch[1]) ? $emailMatch[1] : '';
+                $this->setName($name);
+                $this->setSender($email);
+            }
+
+            if (isset($headers[1])) {
+                $recipient = $headers[1];
+                preg_match('/<(.+?)>/', $recipient, $recipientMatch);
+                $this->setRecipient(!empty($recipientMatch[1]) ? $recipientMatch[1] : str_replace('To: ', '', trim($recipient)));
+            }
+
+            if (isset($headers[3])) {
+                $bcc = str_replace('Bcc: ', '', $headers[3]);
+                $bccEmails = array_map('trim', explode(',', $bcc));
+                $this->setBcc(implode(',', $bccEmails ?? []));
+            }
+            $content = $message->getBody()->getBody();
+        } elseif ($this->helper->versionCompare('2.2.8')) {
+            
             if ($message->getSubject()) {
                 $this->setSubject($message->getSubject());
             }
@@ -123,12 +149,12 @@ class Logs extends AbstractModel
                 $this->setSubject($headers['Subject'][0]);
             }
 
-            if (isset($headers['From'][0])) {
-                $this->setSender($headers['From'][0]);
+            if (isset($headers[0])) {
+                $this->setSender($headers[0]);
             }
 
-            if (isset($headers['To'])) {
-                $recipient = $headers['To'];
+            if (isset($headers[1])) {
+                $recipient = $headers[1];
                 if (isset($recipient['append'])) {
                     unset($recipient['append']);
                 }
@@ -176,17 +202,17 @@ class Logs extends AbstractModel
         $dataObject = new DataObject();
         $dataObject->setData($data);
 
-        $sender = $this->extractEmailInfo($data['sender']);
-        foreach ($sender as $name => $email) {
-            $sender = compact('name', 'email');
-            break;
-        }
-
+        $fromEmail = $this->extractEmailInfo($data['sender']);
+        $sender = [
+            'name' => trim($data['name'] ?? ''),
+            'email' => trim($data['sender'] ?? '')
+        ];
         $recipient = $this->extractEmailInfo($data['recipient']);
         foreach ($recipient as $name => $email) {
             if ($this->helper->versionCompare('2.2.8')) {
                 $this->_transportBuilder->addTo($email);
             } else {
+                $name = trim($name ?? '');
                 $this->_transportBuilder->addTo($email, $name);
             }
         }
@@ -194,12 +220,14 @@ class Logs extends AbstractModel
         if (isset($data['cc'])) {
             $ccEmails = $this->extractEmailInfo($data['cc']);
             foreach ($ccEmails as $name => $email) {
+                $name = trim($name ?? '');
                 $this->_transportBuilder->addCc($email, $name);
             }
         }
 
         if (isset($data['bcc'])) {
             $bccEmails = $this->extractEmailInfo($data['bcc']);
+            $bccEmails = explode(',', $data['bcc'] ?? "");
             foreach ($bccEmails as $email) {
                 $this->_transportBuilder->addBcc($email);
             }
@@ -234,7 +262,6 @@ class Logs extends AbstractModel
     protected function extractEmailInfo($emailList)
     {
         $data = [];
-
         if ($this->helper->versionCompare('2.2.8')) {
             if (strpos($emailList, ' <') !== false) {
                 $emails = explode(' <', $emailList);

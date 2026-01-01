@@ -11,10 +11,6 @@ use Magento\Framework\Exception\LocalizedException;
 use Meetanshi\SMTP\Model\ResourceModel\Logs\Grid\Collection;
 use Meetanshi\SMTP\Model\ResourceModel\Logs\Grid\CollectionFactory;
 
-/**
- * Class Clear
- * @package Meetanshi\SMTP\Controller\Adminhtml\Smtp
- */
 class Clear extends Action
 {
     /**

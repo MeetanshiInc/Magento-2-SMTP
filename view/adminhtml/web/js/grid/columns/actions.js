@@ -1,8 +1,9 @@
 define([
     'jquery',
     'Magento_Ui/js/grid/columns/actions',
+    'Meetanshi_SMTP/js/grid/columns/dompurify',
     'Magento_Ui/js/modal/modal'
-], function ($, Column) {
+], function ($, Column, DOMPurify) {
     'use strict';
 
     return Column.extend({
@@ -15,9 +16,9 @@ define([
 
             if (typeof this.modal[action.rowIndex] === 'undefined') {
                 var row = this.rows[action.rowIndex],
-                    modalHtml = '<iframe srcdoc="' + row['email_content'] + '" style="width: 100%; height: 100%"></iframe>';
-                console.log(row['email_content']);
-                this.modal[action.rowIndex] = $('<div/>')
+                    sanitizedContent = DOMPurify.sanitize(row['email_content']),
+                    modalHtml = '<div>' + sanitizedContent + '</div>';
+                this.modal[action.rowIndex] = $('<div>')
                     .html(modalHtml)
                     .modal({
                         type: 'slide',
@@ -31,4 +32,3 @@ define([
         }
     });
 });
-

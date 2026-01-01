@@ -3,9 +3,6 @@
     <type name="Magento\Framework\Mail\Template\TransportBuilder">
         <plugin name="mt_mail_template_transport_builder" type="Meetanshi\SMTP\Mail\Template\TransportBuilder" sortOrder="1" disabled="false"/>
     </type>
-    <type name="Magento\Framework\Mail\TransportInterface">
-        <plugin name="mt_mail_transport" type="Meetanshi\SMTP\Mail\Transport" sortOrder="1" disabled="false"/>
-    </type>
     <type name="Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory">
         <arguments>
             <argument name="collections" xsi:type="array">
@@ -28,4 +25,6 @@
     <type name="Magento\Framework\Mail\Template\TransportBuilderByStore">
         <plugin name="mt_appTransportBuilder" type="Meetanshi\SMTP\Plugin\Message"/>
     </type>
+    <preference for="Magento\Framework\Mail\EmailMessage" type="Meetanshi\SMTP\Mail\EmailMessage"/>
+    <preference for="Magento\Framework\Mail\TransportInterface" type="Meetanshi\SMTP\Mail\Transport"/>
 </config>

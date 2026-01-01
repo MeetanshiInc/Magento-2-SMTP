@@ -1,17 +1,6 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Meetanshi
- * Date: 01-09-2021
- * Time: 05:35 PM
- */
-
 namespace Meetanshi\SMTP\Model\Config\Source;
 
-/**
- * Class Hosts
- * @package Meetanshi\SMTP\Model\Config\Source
- */
 class Hosts
 {
     /**
@@ -23,6 +12,10 @@ class Hosts
             [
                 'value' => 'Gmail',
                 'label' => __('Gmail')
+            ],
+            [
+                'value' => 'Zoho',
+                'label' => __('Zoho')
             ],
             [
                 'value' => 'amazon_ses',

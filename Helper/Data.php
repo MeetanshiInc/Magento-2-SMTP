@@ -7,10 +7,6 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Store\Model\ScopeInterface;
 use Meetanshi\SMTP\Helper\AbstractData;
 
-/**
- * Class Data
- * @package Meetanshi\SMTP\Helper
- */
 class Data extends AbstractData
 {
     const CONFIG_MODULE_PATH = 'smtp';

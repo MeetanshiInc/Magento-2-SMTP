@@ -9,10 +9,6 @@ use Zend\Mail\Transport\SmtpOptions;
 use Zend_Exception;
 use Zend_Mail_Transport_Smtp;
 
-/**
- * Class Mail
- * @package Meetanshi\SMTP\Mail\Rse
- */
 class Mail
 {
     /**
@@ -175,11 +171,13 @@ class Mail
             $this->_returnPath[$storeId] = $this->smtpHelper->getSmtpConfig('return_path_email', $storeId);
         }
 
-        if ($this->_returnPath[$storeId]) {
-            if ($this->smtpHelper->versionCompare('2.2.8')) {
-                $message->getHeaders()->addHeaders(["Return-Path" => $this->_returnPath[$storeId]]);
-            } elseif (method_exists($message, 'setReturnPath')) {
-                $message->setReturnPath($this->_returnPath[$storeId]);
+        if (!$message->getReplyTo()) {
+            if (is_string($this->_returnPath[$storeId])) {
+                $message->setReplyTo(trim($this->_returnPath[$storeId]), $this->_fromByStore['name']);
+            } elseif ($this->_returnPath[$storeId] instanceof AddressList) {
+                foreach ($this->_returnPath[$storeId] as $address) {
+                    $message->setReplyTo($address);
+                }
             }
         }
 
@@ -197,7 +195,7 @@ class Mail
      * @param $email
      * @param $name
      *
-     * @return $this
+     * @return Mail
      */
     public function setFromByStore($email, $name)
     {

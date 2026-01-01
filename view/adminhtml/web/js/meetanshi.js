@@ -10,6 +10,11 @@ require(['jquery'], function ($) {
                 host = 'smtp.gmail.com';
                 port = '465';
                 protocol = 'ssl';
+            }
+            else  if($(this).val() == 'Zoho') {
+                host = 'smtp.zoho.in';
+                port = '465';
+                protocol = 'ssl';
             } else if($(this).val() == 'amazon_ses') {
                 host = 'email-smtp.us-east-1.amazonaws.com';
                 port = '587';

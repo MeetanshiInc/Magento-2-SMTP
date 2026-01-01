@@ -6,10 +6,6 @@ use Magento\Framework\Mail\Template\SenderResolverInterface;
 use Magento\Framework\Mail\Template\TransportBuilderByStore;
 use Meetanshi\SMTP\Mail\Rse\Mail;
 
-/**
- * Class Message
- * @package Meetanshi\SMTP\Plugin
- */
 class Message
 {
     /**

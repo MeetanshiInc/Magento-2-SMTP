@@ -11,10 +11,6 @@ use Magento\Framework\Translate\Inline\StateInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Meetanshi\SMTP\Model\LogsFactory;
 
-/**
- * Class Email
- * @package Meetanshi\SMTP\Controller\Adminhtml\Smtp
- */
 class Email extends Action
 {
     /**

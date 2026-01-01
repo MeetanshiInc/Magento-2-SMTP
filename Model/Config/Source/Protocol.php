@@ -4,10 +4,6 @@ namespace Meetanshi\SMTP\Model\Config\Source;
 
 use Magento\Framework\Option\ArrayInterface;
 
-/**
- * Class Protocol
- * @package Meetanshi\SMTP\Model\Config\Source
- */
 class Protocol implements ArrayInterface
 {
     /**

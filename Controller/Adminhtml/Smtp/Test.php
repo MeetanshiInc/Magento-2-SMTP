@@ -16,10 +16,6 @@ use Meetanshi\SMTP\Helper\Data as SmtpData;
 use Meetanshi\SMTP\Mail\Rse\Mail;
 use Psr\Log\LoggerInterface;
 
-/**
- * Class Test
- * @package Meetanshi\SMTP\Controller\Adminhtml\Smtp
- */
 class Test extends Action
 {
     /**
@@ -70,8 +66,7 @@ class Test extends Action
         Mail $mailResource,
         TransportBuilder $transportBuilder,
         SenderResolver $senderResolver
-    )
-    {
+    ) {
         $this->logger = $logger;
         $this->smtpDataHelper = $smtpDataHelper;
         $this->mailResource = $mailResource;
@@ -120,14 +115,12 @@ class Test extends Action
                 isset($params['from']) ? $params['from'] : $config['username'],
                 $this->smtpDataHelper->getScopeId()
             );
-
             $this->_transportBuilder
                 ->setTemplateIdentifier('mt_test_email_template')
                 ->setTemplateOptions(['area' => Area::AREA_FRONTEND, 'store' => Store::DEFAULT_STORE_ID])
                 ->setTemplateVars([])
                 ->setFrom($from)
                 ->addTo($params['to']);
-
             try {
                 $this->_transportBuilder->getTransport()->sendMessage();
 

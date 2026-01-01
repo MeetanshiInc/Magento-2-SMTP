@@ -7,10 +7,6 @@ use Magento\Framework\Mail\Template\SenderResolverInterface;
 use Magento\Framework\Registry;
 use Meetanshi\SMTP\Mail\Rse\Mail;
 
-/**
- * Class TransportBuilder
- * @package Meetanshi\SMTP\Mail\Template
- */
 class TransportBuilder
 {
     /**
@@ -39,8 +35,7 @@ class TransportBuilder
         Registry $registry,
         Mail $resourceMail,
         SenderResolverInterface $SenderResolver
-    )
-    {
+    ) {
         $this->registry = $registry;
         $this->resourceMail = $resourceMail;
         $this->senderResolver = $SenderResolver;
@@ -54,8 +49,7 @@ class TransportBuilder
     public function beforeSetTemplateOptions(
         \Magento\Framework\Mail\Template\TransportBuilder $subject,
         $templateOptions
-    )
-    {
+    ) {
         $this->registry->unregister('mp_smtp_store_id');
         if (array_key_exists('store', $templateOptions)) {
             $this->registry->register('mp_smtp_store_id', $templateOptions['store']);
@@ -79,7 +73,6 @@ class TransportBuilder
             $result = $from;
         }
         $this->resourceMail->setFromByStore($result['email'], $result['name']);
-
         return [$from];
     }
 }

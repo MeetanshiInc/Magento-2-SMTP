@@ -31,7 +31,7 @@
                 </field>
                 <field id="blocklist_emails" translate="label" type="textarea" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Block List Emails</label>
-                    <comment>Comma separated list of email addresses.</comment>
+                    <comment>Comma separated list of email addresses in each line.</comment>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>

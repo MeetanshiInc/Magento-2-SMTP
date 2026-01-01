@@ -52,8 +52,7 @@ class AbstractData extends AbstractHelper
         Context $context,
         ObjectManagerInterface $objectManager,
         StoreManagerInterface $storeManager
-    )
-    {
+    ) {
         $this->objectManager = $objectManager;
         $this->storeManager = $storeManager;
 
@@ -77,8 +76,7 @@ class AbstractData extends AbstractHelper
     public function getConfigGeneral($code = '', $storeId = null)
     {
         $code = ($code !== '') ? '/' . $code : '';
-
-        return $this->getConfigValue(static::CONFIG_MODULE_PATH . '/general' . $code, $storeId);
+        return trim($this->getConfigValue(static::CONFIG_MODULE_PATH . '/general' . $code, $storeId) ?? '');
     }
 
     /**

@@ -8,10 +8,6 @@ use Meetanshi\SMTP\Helper\Data;
 use Meetanshi\SMTP\Model\ResourceModel\Logs\CollectionFactory;
 use Psr\Log\LoggerInterface;
 
-/**
- * Class ClearLog
- * @package Meetanshi\SMTP\Cron
- */
 class ClearLog
 {
     /**
@@ -46,8 +42,7 @@ class ClearLog
         DateTime $date,
         CollectionFactory $collectionLog,
         Data $helper
-    )
-    {
+    ) {
         $this->logger = $logger;
         $this->date = $date;
         $this->collectionLog = $collectionLog;

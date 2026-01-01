@@ -4,10 +4,6 @@ namespace Meetanshi\SMTP\Model\Config\Source;
 
 use Magento\Framework\Option\ArrayInterface;
 
-/**
- * Class Authentication
- * @package Meetanshi\SMTP\Model\Config\Source
- */
 class Authentication implements ArrayInterface
 {
     /**

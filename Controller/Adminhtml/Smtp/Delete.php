@@ -9,10 +9,6 @@ use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\Controller\ResultInterface;
 use Meetanshi\SMTP\Model\LogsFactory as ELogs;
 
-/**
- * Class Delete
- * @package Meetanshi\SMTP\Controller\Adminhtml\Smtp
- */
 class Delete extends Action
 {
     /**
