@@ -10,7 +10,7 @@
     {
         "#smtp_configuration_option_test_email_to": {
             "meetanshi/testemail": {
-                "ajaxUrl": "<?=  /* @noEscape */$block->getButtonUrl() ?>"
+                "ajaxUrl": "<?= $block->escapeUrl($block->getButtonUrl()) ?>"
             }
         }
     }
