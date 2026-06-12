@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright 2015 Adobe
  * All Rights Reserved.
@@ -8,35 +9,25 @@
 
 namespace Meetanshi\SMTP\Mail;
 
-use Magento\Framework\App\ObjectManager;
-use Magento\Framework\App\ProductMetadataInterface;
+use Laminas\Mail\Message as LaminasMessage;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\Mail\TransportInterface;
-use Magento\Framework\Mail\EmailMessageInterface;
-use Magento\Framework\Exception\MailException;
-use Magento\Framework\Phrase;
-use Magento\Store\Model\ScopeInterface;
-use Psr\Log\LoggerInterface;
-use Meetanshi\SMTP\Mail\Rse\Mail;
-use Meetanshi\SMTP\Helper\Data;
-use Meetanshi\SMTP\Model\LogsFactory;
-use Magento\Framework\Registry;
-use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
-use Symfony\Component\Mailer\Transport\Smtp\Auth\LoginAuthenticator;
-use Symfony\Component\Mailer\Transport\Smtp\Auth\PlainAuthenticator;
-use Symfony\Component\Mailer\Transport\NativeTransportFactory;
-use Symfony\Component\Mailer\Transport\Dsn;
-use Symfony\Component\Mailer\Transport\TransportInterface as SymfonyTransportInterface;
-use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
-use Symfony\Component\Mime\Message as SymfonyMessage;
-use Zend\Mail\Message as ZendMessage;
-use Zend\Mail\Transport\TransportInterface as ZendTransportInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
-use ReflectionClass;
+use Magento\Framework\Exception\MailException;
+use Magento\Framework\Mail\EmailMessageInterface;
+use Magento\Framework\Mail\TransportInterface;
+use Magento\Framework\Phrase;
+use Magento\Framework\Registry;
+use Magento\Store\Model\ScopeInterface;
+use Meetanshi\SMTP\Helper\Data;
+use Meetanshi\SMTP\Mail\Rse\Mail;
+use Meetanshi\SMTP\Model\LogsFactory;
+use Psr\Log\LoggerInterface;
 
 /**
- * Class responsible for sending emails with compatibility across Magento 2 versions
+ * Class responsible for sending emails with compatibility across Magento 2 versions.
+ *
+ * Supports both Laminas Mail (Magento <= 2.4.7.x) and Symfony Mailer (Magento >= 2.4.8)
+ * by detecting whether Symfony Mailer classes are actually available at runtime.
  *
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
@@ -114,7 +105,7 @@ class Transport implements TransportInterface
     private $storeId;
 
     /**
-     * @var SymfonyTransportInterface|ZendTransportInterface
+     * @var object
      */
     private $transport;
 
@@ -143,7 +134,7 @@ class Transport implements TransportInterface
      * @param Data $helper
      * @param LogsFactory $logFactory
      * @param LoggerInterface $logger
-     * @param ProductMetadataInterface|null $productMetadata
+     * @param EncryptorInterface $encryptor
      */
     public function __construct(
         EmailMessageInterface $message,
@@ -153,8 +144,7 @@ class Transport implements TransportInterface
         Data $helper,
         LogsFactory $logFactory,
         LoggerInterface $logger,
-        EncryptorInterface $encryptor,
-        ?ProductMetadataInterface $productMetadata = null
+        EncryptorInterface $encryptor
     ) {
         $this->message = $message;
         $this->scopeConfig = $scopeConfig;
@@ -165,7 +155,7 @@ class Transport implements TransportInterface
         $this->logger = $logger;
         $this->encryptor = $encryptor;
         $this->storeId = $this->registry->registry('mp_smtp_store_id') ?: 0;
-        $this->isSymfonyMailer = $this->isSymfonyMailer($productMetadata);
+        $this->isSymfonyMailer = EmailMessage::detectSymfonyMailer();
 
         $this->isSmtpEnabled = (bool) $scopeConfig->getValue(
             self::XML_PATH_MT_SMTP_STATUS,
@@ -185,33 +175,28 @@ class Transport implements TransportInterface
     }
 
     /**
-     * Determine if Symfony Mailer should be used based on Magento version
-     *
-     * @param ProductMetadataInterface|null $productMetadata
-     * @return bool
-     */
-    private function isSymfonyMailer(?ProductMetadataInterface $productMetadata = null): bool
-    {
-        $productMetadata = $productMetadata ?: ObjectManager::getInstance()->get(ProductMetadataInterface::class);
-        $version = $productMetadata->getVersion();
-        return version_compare($version, '2.4.7', '>=');
-    }
-
-    /**
      * Get the transport based on configuration
      *
-     * @return SymfonyTransportInterface|ZendTransportInterface
+     * @return object
      */
     private function getTransport()
     {
         if (!isset($this->transport)) {
             if ($this->isSymfonyMailer) {
-                $transportType = $this->isSmtpEnabled ? 'smtp' : $this->scopeConfig->getValue(
-                    self::XML_PATH_TRANSPORT,
-                    ScopeInterface::SCOPE_STORE,
-                    $this->storeId
-                );
-                $this->transport = $transportType === 'smtp' ? $this->createSmtpTransport() : $this->createSendmailTransport();
+                // Check if manual SMTP options were set (e.g., from test controller)
+                $manualOptions = $this->resourceMail->getManualSmtpOptions($this->storeId);
+                if (!empty($manualOptions)) {
+                    $this->transport = $this->createSymfonySmtpTransportFromOptions($manualOptions);
+                } else {
+                    $transportType = $this->isSmtpEnabled ? 'smtp' : $this->scopeConfig->getValue(
+                        self::XML_PATH_TRANSPORT,
+                        ScopeInterface::SCOPE_STORE,
+                        $this->storeId
+                    );
+                    $this->transport = $transportType === 'smtp'
+                        ? $this->createSymfonySmtpTransport()
+                        : $this->createSymfonySendmailTransport();
+                }
             } else {
                 $this->transport = $this->resourceMail->getTransport($this->storeId);
             }
@@ -220,11 +205,57 @@ class Transport implements TransportInterface
     }
 
     /**
-     * Create SMTP transport for Symfony Mailer
+     * Create SMTP transport for Symfony Mailer from manual options (test controller)
      *
-     * @return SymfonyTransportInterface
+     * @param array $options
+     * @return object
      */
-    private function createSmtpTransport(): SymfonyTransportInterface
+    private function createSymfonySmtpTransportFromOptions(array $options)
+    {
+        $host = $options['host'] ?? 'localhost';
+        $port = (int) ($options['port'] ?? 465);
+        $username = $options['username'] ?? '';
+        $password = $options['password'] ?? '';
+        $auth = $options['auth'] ?? 'login';
+        $ssl = $options['ssl'] ?? '';
+
+        $tls = null;
+        if ($ssl === 'tls') {
+            $tls = true;
+        } elseif ($ssl === 'ssl') {
+            $tls = null;
+        } else {
+            $tls = false;
+        }
+
+        $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport($host, $port, $tls);
+        if ($username) {
+            $transport->setUsername($username);
+        }
+        if ($password) {
+            $transport->setPassword($password);
+        }
+
+        switch ($auth) {
+            case 'plain':
+                $transport->setAuthenticators([new \Symfony\Component\Mailer\Transport\Smtp\Auth\PlainAuthenticator()]);
+                break;
+            case 'login':
+                $transport->setAuthenticators([new \Symfony\Component\Mailer\Transport\Smtp\Auth\LoginAuthenticator()]);
+                break;
+            case 'none':
+                break;
+        }
+
+        return $transport;
+    }
+
+    /**
+     * Create SMTP transport for Symfony Mailer (Magento >= 2.4.8)
+     *
+     * @return object
+     */
+    private function createSymfonySmtpTransport()
     {
         $host = $this->scopeConfig->getValue(
             $this->isSmtpEnabled ? self::XML_PATH_MT_SMTP_HOST : self::XML_PATH_HOST,
@@ -257,9 +288,17 @@ class Transport implements TransportInterface
             ScopeInterface::SCOPE_STORE,
             $this->storeId
         );
-        $tls = $ssl === 'tls';
+        $tls = null;
+        if ($ssl === 'tls') {
+            $tls = true;
+        } elseif ($ssl === 'ssl') {
+            // Port 465 with SSL: pass null to let Symfony auto-detect (it enables TLS for port 465)
+            $tls = null;
+        } else {
+            $tls = false;
+        }
 
-        $transport = new EsmtpTransport($host, $port, $tls);
+        $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport($host, $port, $tls);
         if ($username) {
             $transport->setUsername($username);
         }
@@ -269,10 +308,10 @@ class Transport implements TransportInterface
 
         switch ($auth) {
             case 'plain':
-                $transport->setAuthenticators([new PlainAuthenticator()]);
+                $transport->setAuthenticators([new \Symfony\Component\Mailer\Transport\Smtp\Auth\PlainAuthenticator()]);
                 break;
             case 'login':
-                $transport->setAuthenticators([new LoginAuthenticator()]);
+                $transport->setAuthenticators([new \Symfony\Component\Mailer\Transport\Smtp\Auth\LoginAuthenticator()]);
                 break;
             case 'none':
                 break;
@@ -284,23 +323,23 @@ class Transport implements TransportInterface
     }
 
     /**
-     * Create Sendmail transport for Symfony Mailer
+     * Create Sendmail transport for Symfony Mailer (Magento >= 2.4.8)
      *
-     * @return SymfonyTransportInterface
+     * @return object
      */
-    private function createSendmailTransport(): SymfonyTransportInterface
+    private function createSymfonySendmailTransport()
     {
-        $dsn = new Dsn('native', 'default');
-        $nativeTransportFactory = new NativeTransportFactory();
+        $dsn = new \Symfony\Component\Mailer\Transport\Dsn('native', 'default');
+        $nativeTransportFactory = new \Symfony\Component\Mailer\Transport\NativeTransportFactory();
         return $nativeTransportFactory->create($dsn);
     }
 
     /**
      * Set the return path for Symfony Mailer
      *
-     * @param SymfonyMessage $email
+     * @param object $email Symfony Message instance
      */
-    private function setReturnPathSymfony(SymfonyMessage $email): void
+    private function setReturnPathSymfony($email): void
     {
         if ($this->isSetReturnPath === 2 && $this->returnPathValue) {
             $email->getHeaders()->addMailboxListHeader('Sender', [$this->returnPathValue]);
@@ -314,9 +353,9 @@ class Transport implements TransportInterface
     /**
      * Set the return path for Laminas Mail
      *
-     * @param ZendMessage $message
+     * @param LaminasMessage $message
      */
-    private function setReturnPathLaminas(ZendMessage $message): void
+    private function setReturnPathLaminas(LaminasMessage $message): void
     {
         if ($this->isSetReturnPath === 2 && $this->returnPathValue) {
             $message->setSender($this->returnPathValue);
@@ -335,63 +374,90 @@ class Transport implements TransportInterface
      */
     public function sendMessage(): void
     {
-        $blocklistEmails = explode(',', trim(preg_replace('/\s\s+/', '', $this->helper->getConfigGeneral('blocklist_emails'))));
+        $blocklistEmails = explode(
+            ',',
+            trim(preg_replace('/\s\s+/', '', $this->helper->getConfigGeneral('blocklist_emails')))
+        );
         $isBlocked = false;
+
         if ($this->isSymfonyMailer) {
-            $email = $this->message->getSymfonyMessage();
-            foreach ($email->getHeaders()->get('To')->getBody() as $address) {
-                if (in_array($address->getAddress(), $blocklistEmails, true)) {
-                    $isBlocked = true;
-                    break;
-                }
+            $this->sendSymfony($blocklistEmails, $isBlocked);
+        } else {
+            $this->sendLaminas($blocklistEmails, $isBlocked);
+        }
+    }
+
+    /**
+     * Send using Symfony Mailer (Magento >= 2.4.8)
+     *
+     * @param array $blocklistEmails
+     * @param bool $isBlocked
+     * @throws MailException
+     */
+    private function sendSymfony(array $blocklistEmails, bool $isBlocked): void
+    {
+        $email = $this->message->getSymfonyMessage();
+
+        foreach ($email->getHeaders()->get('To')->getBody() as $address) {
+            if (in_array($address->getAddress(), $blocklistEmails, true)) {
+                $isBlocked = true;
+                break;
             }
-            if ($this->resourceMail->isModuleEnable($this->storeId)) {
-                if (!$this->resourceMail->isDeveloperMode($this->storeId)) {
-                    if (!$isBlocked) {
-                        try {
-                            $this->setReturnPathSymfony($email);
-                            $mailer = new Mailer($this->getTransport());
-                            $mailer->send($email);
-                            $this->emailLog($email, true);
-                        } catch (TransportExceptionInterface $e) {
-                            $this->emailLog($email, false);
-                            $this->logger->error('Transport error: ' . $e->getMessage());
-                            throw new MailException(new Phrase('Transport error: Unable to send mail at this time.'), $e);
-                        } catch (\Exception $e) {
-                            $this->emailLog($email, false);
-                            throw new MailException(new Phrase('Unable to send mail. Please try again later.'), $e);
-                        }
+        }
+
+        if ($this->resourceMail->isModuleEnable($this->storeId)) {
+            if (!$this->resourceMail->isDeveloperMode($this->storeId)) {
+                if (!$isBlocked) {
+                    try {
+                        $this->setReturnPathSymfony($email);
+                        $mailer = new \Symfony\Component\Mailer\Mailer($this->getTransport());
+                        $mailer->send($email);
+                        $this->emailLog($email, true);
+                    } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+                        $this->emailLog($email, false);
+                        $this->logger->error('Transport error: ' . $e->getMessage());
+                        throw new MailException(new Phrase('Transport error: Unable to send mail at this time.'), $e);
+                    } catch (\Exception $e) {
+                        $this->emailLog($email, false);
+                        throw new MailException(new Phrase('Unable to send mail. Please try again later.'), $e);
                     }
                 }
-            } else {
-                $email = $this->message->getSymfonyMessage();
-                $this->setReturnPathSymfony($email);
-                $mailer = new Mailer($this->getTransport());
-                $mailer->send($email);
             }
         } else {
-            $message = $this->resourceMail->processMessage($this->message, $this->storeId);
-            if ($this->helper->versionCompare('2.2.8')) {
-                $message = ZendMessage::fromString($message->getRawMessage())->setEncoding('utf-8');
+            $this->setReturnPathSymfony($email);
+            $mailer = new \Symfony\Component\Mailer\Mailer($this->getTransport());
+            $mailer->send($email);
+        }
+    }
+
+    /**
+     * Send using Laminas Mail (Magento <= 2.4.7.x)
+     *
+     * @param array $blocklistEmails
+     * @param bool $isBlocked
+     * @throws MailException
+     */
+    private function sendLaminas(array $blocklistEmails, bool $isBlocked): void
+    {
+        $message = LaminasMessage::fromString($this->message->getRawMessage())->setEncoding('utf-8');
+
+        foreach ($message->getTo() as $address) {
+            if (in_array($address->getEmail(), $blocklistEmails, true)) {
+                $isBlocked = true;
+                break;
             }
-            foreach ($message->getTo() as $address) {
-                if (in_array($address->getEmail(), $blocklistEmails, true)) {
-                    $isBlocked = true;
-                    break;
-                }
-            }
-            if (!$isBlocked && $this->resourceMail->isModuleEnable($this->storeId) && !$this->resourceMail->isDeveloperMode($this->storeId)) {
-                try {
-                    if ($this->helper->versionCompare('2.3.3')) {
-                        $message->getHeaders()->removeHeader('Content-Disposition');
-                    }
-                    $this->setReturnPathLaminas($message);
-                    $this->getTransport()->send($message);
-                    $this->emailLog($message, true);
-                } catch (\Exception $e) {
-                    $this->emailLog($message, false);
-                    throw new MailException(new Phrase($e->getMessage()), $e);
-                }
+        }
+
+        if (!$isBlocked && $this->resourceMail->isModuleEnable($this->storeId)
+            && !$this->resourceMail->isDeveloperMode($this->storeId)) {
+            try {
+                $message->getHeaders()->removeHeader('Content-Disposition');
+                $this->setReturnPathLaminas($message);
+                $this->getTransport()->send($message);
+                $this->emailLog($message, true);
+            } catch (\Exception $e) {
+                $this->emailLog($message, false);
+                throw new MailException(new Phrase($e->getMessage()), $e);
             }
         }
     }
@@ -399,7 +465,7 @@ class Transport implements TransportInterface
     /**
      * Log email sending status
      *
-     * @param ZendMessage|SymfonyMessage $message
+     * @param object $message LaminasMessage or Symfony Message
      * @param bool $status
      */
     private function emailLog($message, bool $status = true): void
@@ -421,17 +487,6 @@ class Transport implements TransportInterface
      */
     public function getMessage(): EmailMessageInterface
     {
-        if ($this->helper->versionCompare('2.2.0')) {
-            return $this->message;
-        }
-        try {
-            $reflectionClass = new ReflectionClass($this);
-            $messageProperty = $reflectionClass->getProperty('message');
-            $messageProperty->setAccessible(true);
-            return $messageProperty->getValue($this);
-        } catch (\Exception $e) {
-            $this->logger->error($e->getMessage());
-            throw new MailException(new Phrase('Unable to retrieve message.'), $e);
-        }
+        return $this->message;
     }
 }

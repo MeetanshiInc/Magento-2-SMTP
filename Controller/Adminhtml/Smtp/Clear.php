@@ -1,4 +1,5 @@
 <?php
+
 namespace Meetanshi\SMTP\Controller\Adminhtml\Smtp;
 
 use Exception;
@@ -18,7 +19,7 @@ class Clear extends Action
      *
      * @see _isAllowed()
      */
-    const ADMIN_RESOURCE = 'Meetanshi_SMTP::smtp';
+    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::smtp';
 
     /**
      * @var Collection

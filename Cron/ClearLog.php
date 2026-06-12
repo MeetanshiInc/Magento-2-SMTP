@@ -68,7 +68,6 @@ class ClearLog
             $logs = $this->collectionLog->create()
                 ->addFieldToFilter('created_at', ['lteq' => date('Y-m-d H:i:s', $timeEnd)]);
 
-
             foreach ($logs as $log) {
                 try {
                     $log->delete();

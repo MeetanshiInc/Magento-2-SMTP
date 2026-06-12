@@ -1,8 +1,8 @@
 <?php
+
 namespace Meetanshi\SMTP\Controller\Adminhtml\Smtp;
 
 use Magento\Backend\App\Action;
-use Magento\Backend\Model\View\Result\Redirect;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\Controller\ResultInterface;

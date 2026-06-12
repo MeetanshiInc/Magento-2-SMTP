@@ -6,8 +6,8 @@ use Magento\Framework\Data\OptionSourceInterface;
 
 class Status implements OptionSourceInterface
 {
-    const STATUS_SUCCESS = 1;
-    const STATUS_ERROR = 0;
+    public const STATUS_SUCCESS = 1;
+    public const STATUS_ERROR = 0;
 
     /**
      * @return array

@@ -1,4 +1,5 @@
 <?php
+
 namespace Meetanshi\SMTP\Model;
 
 use Exception;
@@ -13,8 +14,8 @@ use Magento\Framework\Registry;
 use Magento\Store\Model\Store;
 use Meetanshi\SMTP\Helper\Data;
 use Meetanshi\SMTP\Mail\Rse\Mail;
-use Meetanshi\SMTP\Model\Source\Status;
 use Meetanshi\SMTP\Model\ResourceModel\Logs as ResLogs;
+use Meetanshi\SMTP\Model\Source\Status;
 
 class Logs extends AbstractModel
 {
@@ -71,124 +72,104 @@ class Logs extends AbstractModel
     /**
      * Save email logs
      *
-     * @param $message
-     * @param $status
+     * Supports both Symfony Message (Magento >= 2.4.8) and Laminas Message (Magento <= 2.4.7.x)
+     *
+     * @param object $message
+     * @param bool $status
      */
     public function saveLog($message, $status)
     {
-        if ($this->helper->versionCompare('2.4.8')) {
-            $headers = $message->getHeaders();
-            $headers = $headers->toArray();
-            if (isset($headers[0])) {
-                $this->setSubject(str_replace('Subject: ', '', $headers[0]));
-            }
-
-            if (isset($headers[2])) {
-                $sender = $headers[2];
-                $sender = str_replace('From: ', '', $sender); // Remove 'From: ' prefix
-                preg_match('/^(.*?)(?:\s*<[^>]+>)?$/', $sender, $senderMatch);
-                $name = !empty($senderMatch[1]) ? trim($senderMatch[1]) : trim($sender);
-                preg_match('/<(.+?)>/', $sender, $emailMatch);
-                $email = !empty($emailMatch[1]) ? $emailMatch[1] : '';
-                $this->setName($name);
-                $this->setSender($email);
-            }
-
-            if (isset($headers[1])) {
-                $recipient = $headers[1];
-                preg_match('/<(.+?)>/', $recipient, $recipientMatch);
-                $this->setRecipient(!empty($recipientMatch[1]) ? $recipientMatch[1] : str_replace('To: ', '', trim($recipient)));
-            }
-
-            if (isset($headers[3])) {
-                $bcc = str_replace('Bcc: ', '', $headers[3]);
-                $bccEmails = array_map('trim', explode(',', $bcc));
-                $this->setBcc(implode(',', $bccEmails ?? []));
-            }
-            $content = $message->getBody()->getBody();
-        } elseif ($this->helper->versionCompare('2.2.8')) {
-            
-            if ($message->getSubject()) {
-                $this->setSubject($message->getSubject());
-            }
-
-            $from = $message->getFrom();
-            if (!empty($from)) {
-                $from->rewind();
-                $this->setSender($from->current()->getName() . ' <' . $from->current()->getEmail() . '>');
-            }
-
-            $toArr = [];
-            foreach ($message->getTo() as $toAddr) {
-                $toArr[] = $toAddr->getEmail();
-            }
-            $this->setRecipient(implode(',', $toArr));
-
-            $ccArr = [];
-            foreach ($message->getCc() as $ccAddr) {
-                $ccArr[] = $ccAddr->getEmail();
-            }
-            $this->setCc(implode(',', $ccArr));
-
-            $bccArr = [];
-            foreach ($message->getBcc() as $bccAddr) {
-                $bccArr[] = $bccAddr->getEmail();
-            }
-            $this->setBcc(implode(',', $bccArr));
-
-            if ($this->helper->versionCompare('2.3.3')) {
-                $messageBody = quoted_printable_decode($message->getBodyText());
-                $content     = htmlspecialchars($messageBody);
-            } else {
-                $content = htmlspecialchars($message->getBodyText());
-            }
+        if ($message instanceof \Laminas\Mail\Message) {
+            $this->saveLogLaminas($message);
         } else {
-            $headers = $message->getHeaders();
-
-            if (isset($headers['Subject'][0])) {
-                $this->setSubject($headers['Subject'][0]);
-            }
-
-            if (isset($headers[0])) {
-                $this->setSender($headers[0]);
-            }
-
-            if (isset($headers[1])) {
-                $recipient = $headers[1];
-                if (isset($recipient['append'])) {
-                    unset($recipient['append']);
-                }
-                $this->setRecipient(implode(', ', $recipient));
-            }
-
-            if (isset($headers['Cc'])) {
-                $cc = $headers['Cc'];
-                if (isset($cc['append'])) {
-                    unset($cc['append']);
-                }
-                $this->setCc(implode(', ', $cc));
-            }
-
-            if (isset($headers['Bcc'])) {
-                $bcc = $headers['Bcc'];
-                if (isset($bcc['append'])) {
-                    unset($bcc['append']);
-                }
-                $this->setBcc(implode(', ', $bcc));
-            }
-
-            $body = $message->getBodyHtml();
-            if (is_object($body)) {
-                $content = htmlspecialchars($body->getRawContent());
-            } else {
-                $content = htmlspecialchars($message->getBody()->getRawContent());
-            }
-
+            // Symfony Message (Magento >= 2.4.8)
+            $this->saveLogSymfony($message);
         }
 
-        $this->setEmailContent($content)
-            ->setStatus($status)
-            ->save();
+        $this->setStatus($status)->save();
+    }
+
+    /**
+     * Save log from Symfony Message
+     *
+     * @param object $message
+     */
+    private function saveLogSymfony($message): void
+    {
+        $headers = $message->getHeaders()->toArray();
+
+        if (isset($headers[0])) {
+            $this->setSubject(str_replace('Subject: ', '', $headers[0]));
+        }
+
+        if (isset($headers[2])) {
+            $sender = $headers[2];
+            $sender = str_replace('From: ', '', $sender);
+            preg_match('/^(.*?)(?:\s*<[^>]+>)?$/', $sender, $senderMatch);
+            $name = !empty($senderMatch[1]) ? trim($senderMatch[1]) : trim($sender);
+            preg_match('/<(.+?)>/', $sender, $emailMatch);
+            $email = !empty($emailMatch[1]) ? $emailMatch[1] : '';
+            $this->setName($name);
+            $this->setSender($email);
+        }
+
+        if (isset($headers[1])) {
+            $recipient = $headers[1];
+            preg_match('/<(.+?)>/', $recipient, $recipientMatch);
+            $this->setRecipient(!empty($recipientMatch[1]) ? $recipientMatch[1] : str_replace('To: ', '', trim($recipient)));
+        }
+
+        if (isset($headers[3])) {
+            $bcc = str_replace('Bcc: ', '', $headers[3]);
+            $bccEmails = array_map('trim', explode(',', $bcc));
+            $this->setBcc(implode(',', $bccEmails));
+        }
+
+        $content = $message->getBody()->bodyToString();
+        $this->setEmailContent($content);
+    }
+
+    /**
+     * Save log from Laminas Message
+     *
+     * @param \Laminas\Mail\Message $message
+     */
+    private function saveLogLaminas(\Laminas\Mail\Message $message): void
+    {
+        if ($message->getSubject()) {
+            $this->setSubject($message->getSubject());
+        }
+
+        $from = $message->getFrom();
+        if (!empty($from)) {
+            $from->rewind();
+            $current = $from->current();
+            if ($current) {
+                $this->setSender($current->getName() . ' <' . $current->getEmail() . '>');
+            }
+        }
+
+        $toArr = [];
+        foreach ($message->getTo() as $toAddr) {
+            $toArr[] = $toAddr->getEmail();
+        }
+        $this->setRecipient(implode(',', $toArr));
+
+        $ccArr = [];
+        foreach ($message->getCc() as $ccAddr) {
+            $ccArr[] = $ccAddr->getEmail();
+        }
+        $this->setCc(implode(',', $ccArr));
+
+        $bccArr = [];
+        foreach ($message->getBcc() as $bccAddr) {
+            $bccArr[] = $bccAddr->getEmail();
+        }
+        $this->setBcc(implode(',', $bccArr));
+
+        $messageBody = quoted_printable_decode($message->getBodyText());
+        $content = htmlspecialchars($messageBody);
+        $this->setEmailContent($content);
     }
 
     /**
@@ -202,22 +183,16 @@ class Logs extends AbstractModel
         $dataObject = new DataObject();
         $dataObject->setData($data);
 
-        $fromEmail = $this->extractEmailInfo($data['sender']);
         $sender = [
             'name' => trim($data['name'] ?? ''),
-            'email' => trim($data['sender'] ?? '')
+            'email' => trim($data['sender'] ?? ''),
         ];
         $recipient = $this->extractEmailInfo($data['recipient']);
         foreach ($recipient as $name => $email) {
-            if ($this->helper->versionCompare('2.2.8')) {
-                $this->_transportBuilder->addTo($email);
-            } else {
-                $name = trim($name ?? '');
-                $this->_transportBuilder->addTo($email, $name);
-            }
+            $this->_transportBuilder->addTo($email);
         }
 
-        if (isset($data['cc'])) {
+        if (!empty($data['cc'])) {
             $ccEmails = $this->extractEmailInfo($data['cc']);
             foreach ($ccEmails as $name => $email) {
                 $name = trim($name ?? '');
@@ -225,11 +200,13 @@ class Logs extends AbstractModel
             }
         }
 
-        if (isset($data['bcc'])) {
-            $bccEmails = $this->extractEmailInfo($data['bcc']);
-            $bccEmails = explode(',', $data['bcc'] ?? "");
+        if (!empty($data['bcc'])) {
+            $bccEmails = explode(',', $data['bcc'] ?? '');
             foreach ($bccEmails as $email) {
-                $this->_transportBuilder->addBcc($email);
+                $email = trim($email);
+                if ($email) {
+                    $this->_transportBuilder->addBcc($email);
+                }
             }
         }
 
@@ -262,32 +239,20 @@ class Logs extends AbstractModel
     protected function extractEmailInfo($emailList)
     {
         $data = [];
-        if ($this->helper->versionCompare('2.2.8')) {
-            if (strpos($emailList, ' <') !== false) {
-                $emails = explode(' <', $emailList);
-                $name = '';
-                if (!empty($emails)) {
-                    $name = $emails[0];
-                }
-                $email = trim($emails[1], '>');
-                $data[$name] = $email;
-            } else {
-                $emails = explode(',', $emailList);
-                foreach ($emails as $email) {
-                    $data[] = $email;
-                }
+        if (strpos($emailList, ' <') !== false) {
+            $emails = explode(' <', $emailList);
+            $name = '';
+            if (!empty($emails)) {
+                $name = $emails[0];
             }
+            $email = trim($emails[1] ?? '', '>');
+            $data[$name] = $email;
         } else {
-            $emails = explode(', ', $emailList);
+            $emails = explode(',', $emailList);
             foreach ($emails as $email) {
-                if (strpos($emailList, ' <') !== false) {
-                    $emailArray = explode(' <', $email);
-                    $name = '';
-                    if (!empty($emailArray)) {
-                        $name = trim($emailArray[0], '" ');
-                        $email = trim($emailArray[1], '<>');
-                    }
-                    $data[$name] = $email;
+                $email = trim($email);
+                if ($email) {
+                    $data[] = $email;
                 }
             }
         }

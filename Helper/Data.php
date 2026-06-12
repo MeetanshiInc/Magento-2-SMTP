@@ -5,13 +5,12 @@ namespace Meetanshi\SMTP\Helper;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Store\Model\ScopeInterface;
-use Meetanshi\SMTP\Helper\AbstractData;
 
 class Data extends AbstractData
 {
-    const CONFIG_MODULE_PATH = 'smtp';
-    const CONFIG_GROUP_SMTP = 'configuration_option';
-    const DEVELOP_GROUP_SMTP = 'developer';
+    public const CONFIG_MODULE_PATH = 'smtp';
+    public const CONFIG_GROUP_SMTP = 'configuration_option';
+    public const DEVELOP_GROUP_SMTP = 'developer';
 
     /**
      * @param string $code

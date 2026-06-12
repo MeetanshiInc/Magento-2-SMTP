@@ -23,7 +23,7 @@ class Test extends Action
      *
      * @see _isAllowed()
      */
-    const ADMIN_RESOURCE = 'Meetanshi_Smtp::smtp';
+    public const ADMIN_RESOURCE = 'Meetanshi_Smtp::smtp';
 
     /**
      * @var LoggerInterface
@@ -92,7 +92,7 @@ class Test extends Action
                 'auth' => $params['authentication'],
                 'username' => $params['username'],
                 'ignore_log' => true,
-                'force_sent' => true
+                'force_sent' => true,
             ];
 
             if ($params['protocol']) {
@@ -126,7 +126,7 @@ class Test extends Action
 
                 $result = [
                     'status' => true,
-                    'content' => __('Sent successfully! Please check your email box.')
+                    'content' => __('Sent successfully! Please check your email box.'),
                 ];
             } catch (Exception $e) {
                 $result['content'] = $e->getMessage();

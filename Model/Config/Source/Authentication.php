@@ -16,19 +16,19 @@ class Authentication implements ArrayInterface
         $options = [
             [
                 'value' => '',
-                'label' => __('NONE')
+                'label' => __('NONE'),
             ],
             [
                 'value' => 'plain',
-                'label' => __('PLAIN')
+                'label' => __('PLAIN'),
             ],
             [
                 'value' => 'login',
-                'label' => __('LOGIN')
+                'label' => __('LOGIN'),
             ],
             [
                 'value' => 'crammd5',
-                'label' => __('CRAM-MD5')
+                'label' => __('CRAM-MD5'),
             ],
         ];
 

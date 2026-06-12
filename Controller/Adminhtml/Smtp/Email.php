@@ -1,4 +1,5 @@
 <?php
+
 namespace Meetanshi\SMTP\Controller\Adminhtml\Smtp;
 
 use Magento\Backend\App\Action;

@@ -1,4 +1,5 @@
 <?php
+
 namespace Meetanshi\SMTP\Plugin;
 
 use Magento\Framework\Exception\MailException;

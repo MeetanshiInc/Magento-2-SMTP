@@ -1,4 +1,5 @@
 <?php
+
 namespace Meetanshi\SMTP\Model\Config\Source;
 
 class Hosts
@@ -11,20 +12,20 @@ class Hosts
         $options = [
             [
                 'value' => 'Gmail',
-                'label' => __('Gmail')
+                'label' => __('Gmail'),
             ],
             [
                 'value' => 'Zoho',
-                'label' => __('Zoho')
+                'label' => __('Zoho'),
             ],
             [
                 'value' => 'amazon_ses',
-                'label' => __('Amazon Ses')
+                'label' => __('Amazon Ses'),
             ],
             [
                 'value' => 'mandrill',
-                'label' => __('Mandrill')
-            ]
+                'label' => __('Mandrill'),
+            ],
         ];
 
         return $options;

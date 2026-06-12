@@ -13,7 +13,6 @@ use Psr\Log\LoggerInterface;
 
 class Collection extends SMTPCollection implements SearchResultInterface
 {
-
     /**
      * Collection constructor.
      * @param EntityFactoryInterface $entityFactory

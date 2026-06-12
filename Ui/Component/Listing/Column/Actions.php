@@ -48,35 +48,34 @@ class Actions extends Column
                 if (isset($item['id'])) {
                     $subject = $item['subject'];
 
-                    if (stripos($subject, "=?utf-8?b?") !== false) {
-                        $output = str_ireplace("=?utf-8?B?", "", $subject);
-                        $output = str_replace("==?=", "", $output);
-                        $output = mb_convert_encoding($output, "UTF-8", "BASE64");
+                    if (stripos($subject, '=?utf-8?b?') !== false) {
+                        $output = str_ireplace('=?utf-8?B?', '', $subject);
+                        $output = str_replace('==?=', '', $output);
+                        $output = mb_convert_encoding($output, 'UTF-8', 'BASE64');
                     } else {
                         $output = $subject;
                     }
                     $item['subject'] = $output;
 
-
                     $item[$this->getData('name')] = [
                         'view' => [
-                            'label' => __('View')
+                            'label' => __('View'),
                         ],
                         'resend' => [
                             'href' => $this->urlBuilder->getUrl('mt_smtp/smtp/email', ['id' => $item['id']]),
                             'label' => __('Resend'),
                             'confirm' => [
                                 'title' => __('Resend Email'),
-                                'message' => __('Are you sure you want to resend the email <strong>"%1"</strong>?', $item['subject'])
-                            ]
+                                'message' => __('Are you sure you want to resend the email <strong>"%1"</strong>?', $item['subject']),
+                            ],
                         ],
                         'delete' => [
                             'href' => $this->urlBuilder->getUrl('mt_smtp/smtp/delete', ['id' => $item['id']]),
                             'label' => __('Delete'),
                             'confirm' => [
                                 'title' => __('Delete Log'),
-                                'message' => __('Are you sure you want to delete this log?')
-                            ]
+                                'message' => __('Are you sure you want to delete this log?'),
+                            ],
                         ],
                     ];
                 }

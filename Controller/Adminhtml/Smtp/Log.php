@@ -1,4 +1,5 @@
 <?php
+
 namespace Meetanshi\SMTP\Controller\Adminhtml\Smtp;
 
 use Magento\Backend\App\Action;
@@ -13,7 +14,7 @@ class Log extends Action
      *
      * @see _isAllowed()
      */
-    const ADMIN_RESOURCE = 'Meetanshi_SMTP::log';
+    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::log';
 
     /**
      * @var PageFactory

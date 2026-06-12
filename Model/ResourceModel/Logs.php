@@ -1,4 +1,5 @@
 <?php
+
 namespace Meetanshi\SMTP\Model\ResourceModel;
 
 use Magento\Framework\Model\AbstractModel;

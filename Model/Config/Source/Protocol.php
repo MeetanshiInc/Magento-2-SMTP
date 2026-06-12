@@ -16,15 +16,15 @@ class Protocol implements ArrayInterface
         $options = [
             [
                 'value' => '',
-                'label' => __('None')
+                'label' => __('None'),
             ],
             [
                 'value' => 'ssl',
-                'label' => __('SSL')
+                'label' => __('SSL'),
             ],
             [
                 'value' => 'tls',
-                'label' => __('TLS')
+                'label' => __('TLS'),
             ],
         ];
 

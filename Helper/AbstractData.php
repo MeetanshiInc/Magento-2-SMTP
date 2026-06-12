@@ -15,7 +15,7 @@ use Magento\Store\Model\StoreManagerInterface;
 
 class AbstractData extends AbstractHelper
 {
-    const CONFIG_MODULE_PATH = 'meetanshi';
+    public const CONFIG_MODULE_PATH = 'meetanshi';
 
     /**
      * @type array
@@ -160,29 +160,19 @@ class AbstractData extends AbstractHelper
     /**
      * @param $data
      * @return string
-     * @throws \Zend_Serializer_Exception
      */
     public function serialize($data)
     {
-        if ($this->versionCompare('2.2.0')) {
-            return self::jsonEncode($data);
-        }
-
-        return $this->getSerializeClass()->serialize($data);
+        return self::jsonEncode($data);
     }
 
     /**
      * @param $string
      * @return mixed
-     * @throws \Zend_Serializer_Exception
      */
     public function unserialize($string)
     {
-        if ($this->versionCompare('2.2.0')) {
-            return self::jsonDecode($string);
-        }
-
-        return $this->getSerializeClass()->unserialize($string);
+        return self::jsonDecode($string);
     }
 
     /**
@@ -274,13 +264,5 @@ class AbstractData extends AbstractHelper
     public static function getJsonHelper()
     {
         return ObjectManager::getInstance()->get(JsonHelper::class);
-    }
-
-    /**
-     * @return \Zend_Serializer_Adapter_PhpSerialize|mixed
-     */
-    protected function getSerializeClass()
-    {
-        return $this->objectManager->get(\Zend_Serializer_Adapter_PhpSerialize::class);
     }
 }
