@@ -1,4 +1,4 @@
-# Magento 2 SMTP 
+# Magento 2 SMTP Extension
 
 Emails are considered to be one of the most popular forms of marketing these days. According to One study by Hubspot, almost 64% of businesses use email marketing to reach their prospects. 
 
