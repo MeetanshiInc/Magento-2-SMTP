@@ -21,6 +21,7 @@ use Magento\Store\Model\ScopeInterface;
 use Meetanshi\SMTP\Helper\Data;
 use Meetanshi\SMTP\Mail\Rse\Mail;
 use Meetanshi\SMTP\Model\LogsFactory;
+use Meetanshi\SMTP\Model\Source\Status;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -216,7 +217,7 @@ class Transport implements TransportInterface
         $port = (int) ($options['port'] ?? 465);
         $username = $options['username'] ?? '';
         $password = $options['password'] ?? '';
-        $auth = $options['auth'] ?? 'login';
+        $auth = $options['auth'] ?? '';
         $ssl = $options['ssl'] ?? '';
 
         $tls = null;
@@ -229,23 +230,7 @@ class Transport implements TransportInterface
         }
 
         $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport($host, $port, $tls);
-        if ($username) {
-            $transport->setUsername($username);
-        }
-        if ($password) {
-            $transport->setPassword($password);
-        }
-
-        switch ($auth) {
-            case 'plain':
-                $transport->setAuthenticators([new \Symfony\Component\Mailer\Transport\Smtp\Auth\PlainAuthenticator()]);
-                break;
-            case 'login':
-                $transport->setAuthenticators([new \Symfony\Component\Mailer\Transport\Smtp\Auth\LoginAuthenticator()]);
-                break;
-            case 'none':
-                break;
-        }
+        $this->applySymfonyAuthentication($transport, $auth, (string) $username, (string) $password);
 
         return $transport;
     }
@@ -299,27 +284,54 @@ class Transport implements TransportInterface
         }
 
         $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport($host, $port, $tls);
-        if ($username) {
+        $this->applySymfonyAuthentication($transport, $auth, (string) $username, (string) $password);
+
+        return $transport;
+    }
+
+    /**
+     * Set the SMTP login on a Symfony transport
+     *
+     * Values come from the Authentication setting: '' (NONE), plain, login, crammd5.
+     * 'none' is Magento's own value (Stores > Configuration > Advanced > System > Mail Sending Settings).
+     *
+     * @param \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport $transport
+     * @param string|null $auth
+     * @param string $username
+     * @param string $password
+     * @return void
+     * @throws \InvalidArgumentException
+     */
+    private function applySymfonyAuthentication($transport, $auth, string $username, string $password): void
+    {
+        $auth = strtolower(trim((string) $auth));
+        if ($auth === '' || $auth === 'none') {
+            // NONE: do not log in to the SMTP server, even if a username is saved
+            return;
+        }
+
+        if ($username !== '') {
             $transport->setUsername($username);
         }
-        if ($password) {
+        if ($password !== '') {
             $transport->setPassword($password);
         }
 
         switch ($auth) {
             case 'plain':
-                $transport->setAuthenticators([new \Symfony\Component\Mailer\Transport\Smtp\Auth\PlainAuthenticator()]);
+                $authenticator = new \Symfony\Component\Mailer\Transport\Smtp\Auth\PlainAuthenticator();
                 break;
             case 'login':
-                $transport->setAuthenticators([new \Symfony\Component\Mailer\Transport\Smtp\Auth\LoginAuthenticator()]);
+                $authenticator = new \Symfony\Component\Mailer\Transport\Smtp\Auth\LoginAuthenticator();
                 break;
-            case 'none':
+            case 'crammd5':
+            case 'cram-md5':
+                $authenticator = new \Symfony\Component\Mailer\Transport\Smtp\Auth\CramMd5Authenticator();
                 break;
             default:
                 throw new \InvalidArgumentException('Invalid authentication type: ' . $auth);
         }
-
-        return $transport;
+        $transport->setAuthenticators([$authenticator]);
     }
 
     /**
@@ -374,10 +386,7 @@ class Transport implements TransportInterface
      */
     public function sendMessage(): void
     {
-        $blocklistEmails = explode(
-            ',',
-            trim(preg_replace('/\s\s+/', '', $this->helper->getConfigGeneral('blocklist_emails')))
-        );
+        $blocklistEmails = $this->helper->getBlocklistEmails($this->storeId);
         $isBlocked = false;
 
         if ($this->isSymfonyMailer) {
@@ -399,29 +408,36 @@ class Transport implements TransportInterface
         $email = $this->message->getSymfonyMessage();
 
         foreach ($email->getHeaders()->get('To')->getBody() as $address) {
-            if (in_array($address->getAddress(), $blocklistEmails, true)) {
+            if (in_array(strtolower($address->getAddress()), $blocklistEmails, true)) {
                 $isBlocked = true;
                 break;
             }
         }
 
         if ($this->resourceMail->isModuleEnable($this->storeId)) {
-            if (!$this->resourceMail->isDeveloperMode($this->storeId)) {
-                if (!$isBlocked) {
-                    try {
-                        $this->setReturnPathSymfony($email);
-                        $mailer = new \Symfony\Component\Mailer\Mailer($this->getTransport());
-                        $mailer->send($email);
-                        $this->emailLog($email, true);
-                    } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
-                        $this->emailLog($email, false);
-                        $this->logger->error('Transport error: ' . $e->getMessage());
-                        throw new MailException(new Phrase('Transport error: Unable to send mail at this time.'), $e);
-                    } catch (\Exception $e) {
-                        $this->emailLog($email, false);
-                        throw new MailException(new Phrase('Unable to send mail. Please try again later.'), $e);
-                    }
-                }
+            if ($isBlocked) {
+                // Recipient is in Block List Emails: do not deliver, but log it so the admin can see it was blocked
+                $this->emailLog($email, Status::STATUS_BLOCKED);
+                return;
+            }
+            if ($this->resourceMail->isDeveloperMode($this->storeId)) {
+                // Developer Mode: do not deliver the email, but keep it in the log so it can be checked
+                $this->setReturnPathSymfony($email);
+                $this->emailLog($email, Status::STATUS_DEVELOPER_MODE);
+                return;
+            }
+            try {
+                $this->setReturnPathSymfony($email);
+                $mailer = new \Symfony\Component\Mailer\Mailer($this->getTransport());
+                $mailer->send($email);
+                $this->emailLog($email, Status::STATUS_SUCCESS);
+            } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+                $this->emailLog($email, Status::STATUS_ERROR);
+                $this->logger->error('Transport error: ' . $e->getMessage());
+                throw new MailException(new Phrase('Transport error: Unable to send mail at this time.'), $e);
+            } catch (\Exception $e) {
+                $this->emailLog($email, Status::STATUS_ERROR);
+                throw new MailException(new Phrase('Unable to send mail. Please try again later.'), $e);
             }
         } else {
             $this->setReturnPathSymfony($email);
@@ -442,21 +458,32 @@ class Transport implements TransportInterface
         $message = LaminasMessage::fromString($this->message->getRawMessage())->setEncoding('utf-8');
 
         foreach ($message->getTo() as $address) {
-            if (in_array($address->getEmail(), $blocklistEmails, true)) {
+            if (in_array(strtolower($address->getEmail()), $blocklistEmails, true)) {
                 $isBlocked = true;
                 break;
             }
         }
 
-        if (!$isBlocked && $this->resourceMail->isModuleEnable($this->storeId)
-            && !$this->resourceMail->isDeveloperMode($this->storeId)) {
+        if ($this->resourceMail->isModuleEnable($this->storeId)) {
+            if ($isBlocked) {
+                // Recipient is in Block List Emails: do not deliver, but log it so the admin can see it was blocked
+                $this->emailLog($message, Status::STATUS_BLOCKED);
+                return;
+            }
+            if ($this->resourceMail->isDeveloperMode($this->storeId)) {
+                // Developer Mode: do not deliver the email, but keep it in the log so it can be checked
+                $message->getHeaders()->removeHeader('Content-Disposition');
+                $this->setReturnPathLaminas($message);
+                $this->emailLog($message, Status::STATUS_DEVELOPER_MODE);
+                return;
+            }
             try {
                 $message->getHeaders()->removeHeader('Content-Disposition');
                 $this->setReturnPathLaminas($message);
                 $this->getTransport()->send($message);
-                $this->emailLog($message, true);
+                $this->emailLog($message, Status::STATUS_SUCCESS);
             } catch (\Exception $e) {
-                $this->emailLog($message, false);
+                $this->emailLog($message, Status::STATUS_ERROR);
                 throw new MailException(new Phrase($e->getMessage()), $e);
             }
         }
@@ -466,9 +493,9 @@ class Transport implements TransportInterface
      * Log email sending status
      *
      * @param object $message LaminasMessage or Symfony Message
-     * @param bool $status
+     * @param int $status One of Status::STATUS_* values
      */
-    private function emailLog($message, bool $status = true): void
+    private function emailLog($message, int $status = Status::STATUS_SUCCESS): void
     {
         if ($this->resourceMail->isEnableEmailLog($this->storeId)) {
             $log = $this->logFactory->create();

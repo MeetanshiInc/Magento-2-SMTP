@@ -19,7 +19,7 @@ class Clear extends Action
      *
      * @see _isAllowed()
      */
-    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::smtp';
+    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::log';
 
     /**
      * @var Collection

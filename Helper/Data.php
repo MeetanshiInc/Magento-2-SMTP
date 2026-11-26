@@ -62,6 +62,53 @@ class Data extends AbstractData
     }
 
     /**
+     * Get the Block List Emails as a clean list
+     *
+     * Addresses can be separated by commas, semicolons, spaces or new lines. Matching is not case-sensitive.
+     *
+     * @param int|string|null $storeId
+     * @return string[]
+     */
+    public function getBlocklistEmails($storeId = null): array
+    {
+        $value = strtolower((string) $this->getConfigGeneral('blocklist_emails', $storeId));
+
+        return array_values(array_unique(preg_split('/[\s,;]+/', $value, -1, PREG_SPLIT_NO_EMPTY)));
+    }
+
+    /**
+     * Is the email address in the Block List Emails
+     *
+     * @param string $email
+     * @param int|string|null $storeId
+     * @return bool
+     */
+    public function isBlockedEmail($email, $storeId = null): bool
+    {
+        return in_array(strtolower(trim((string) $email)), $this->getBlocklistEmails($storeId), true);
+    }
+
+    /**
+     * Get a saved SMTP option for the scope open in the admin (store / website / default)
+     *
+     * @param string $code
+     * @return string
+     */
+    public function getSavedSmtpConfig($code)
+    {
+        if ($storeId = $this->_request->getParam('store')) {
+            $value = $this->getSmtpConfig($code, $storeId);
+        } elseif ($websiteCode = $this->_request->getParam('website')) {
+            $path = self::CONFIG_MODULE_PATH . '/' . self::CONFIG_GROUP_SMTP . '/' . $code;
+            $value = $this->getConfigValue($path, $websiteCode, ScopeInterface::SCOPE_WEBSITE);
+        } else {
+            $value = $this->getSmtpConfig($code);
+        }
+
+        return trim((string) $value);
+    }
+
+    /**
      * @return int
      * @throws LocalizedException
      */

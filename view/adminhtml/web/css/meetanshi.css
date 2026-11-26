@@ -18,3 +18,20 @@
 .mt_smtp-smtp-log .confirm .modal-content div {
     height: auto;
 }
+.mt_smtp-smtp-log .mt-smtp-grid-developer {
+    background: #f1f1f1;
+    border: 1px solid #adadad;
+    color: #514943;
+    display: block;
+    font-weight: 600;
+    line-height: 1.6;
+    padding: 0 0.5rem;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.mt_smtp-smtp-log .mt-smtp-grid-blocked {
+    background: #fff3e0;
+    border-color: #e88b2e;
+    color: #8a4b0f;
+}

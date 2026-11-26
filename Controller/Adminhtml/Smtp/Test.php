@@ -6,6 +6,7 @@ use Exception;
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
 use Magento\Email\Model\Template\SenderResolver;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\Controller\ResultInterface;
@@ -16,14 +17,14 @@ use Meetanshi\SMTP\Helper\Data as SmtpData;
 use Meetanshi\SMTP\Mail\Rse\Mail;
 use Psr\Log\LoggerInterface;
 
-class Test extends Action
+class Test extends Action implements HttpPostActionInterface
 {
     /**
      * Authorization level of a basic admin session
      *
      * @see _isAllowed()
      */
-    public const ADMIN_RESOURCE = 'Meetanshi_Smtp::smtp';
+    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::smtp';
 
     /**
      * @var LoggerInterface
@@ -84,17 +85,37 @@ class Test extends Action
     {
         $result = ['status' => false];
 
-        $params = $this->getRequest()->getParams();
-        if ($params && $params['to']) {
+        $params = $this->getRequest()->getParams() + [
+            'to' => '', 'host' => '', 'authentication' => '', 'username' => '', 'protocol' => '',
+            'port' => '', 'password' => '', 'returnpath' => '',
+        ];
+        if ($params['to'] && $this->smtpDataHelper->isBlockedEmail($params['to'], Store::DEFAULT_STORE_ID)) {
+            $result['content'] = __(
+                'The address %1 is in Block List Emails, so the test email was not sent.',
+                $params['to']
+            );
+        } elseif ($params['to'] && $this->mailResource->isDeveloperMode(Store::DEFAULT_STORE_ID)) {
+            $result['content'] = __(
+                'Developer Mode is enabled, so the test email was not sent. '
+                . 'Set Developer Mode to No, save the configuration and try again.'
+            );
+        } elseif ($params['to'] && $params['password'] === '******' && !$this->isSavedServer($params)) {
+            $result['content'] = __(
+                'The host or username was changed, so the saved password cannot be used. '
+                . 'Please enter the password again and click Test Now.'
+            );
+        } elseif ($params['to']) {
             $config = [
                 'type' => 'smtp',
                 'host' => $params['host'],
-                'auth' => $params['authentication'],
                 'username' => $params['username'],
                 'ignore_log' => true,
                 'force_sent' => true,
             ];
 
+            if ($params['authentication']) {
+                $config['auth'] = $params['authentication'];
+            }
             if ($params['protocol']) {
                 $config['ssl'] = $params['protocol'];
             }
@@ -137,5 +158,21 @@ class Test extends Action
         }
 
         return $this->getResponse()->representJson(SmtpData::jsonEncode($result));
+    }
+
+    /**
+     * Check the host and username are the saved ones, so the saved password is only sent to the saved server
+     *
+     * @param array $params
+     * @return bool
+     */
+    private function isSavedServer(array $params): bool
+    {
+        $savedHost = $this->smtpDataHelper->getSavedSmtpConfig('host');
+        $savedUser = $this->smtpDataHelper->getSavedSmtpConfig('username');
+
+        return $savedHost !== ''
+            && strcasecmp(trim((string) $params['host']), $savedHost) === 0
+            && trim((string) $params['username']) === $savedUser;
     }
 }

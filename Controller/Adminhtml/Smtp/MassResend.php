@@ -13,6 +13,12 @@ use Meetanshi\SMTP\Model\ResourceModel\Logs\CollectionFactory;
 class MassResend extends Action
 {
     /**
+     * Authorization level of a basic admin session
+     *
+     * @see _isAllowed()
+     */
+    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::log';
+    /**
      * @var Filter
      */
     protected $filter;
@@ -51,6 +57,10 @@ class MassResend extends Action
     public function execute()
     {
         $collection = $this->filter->getCollection($this->emailLog->create());
+        if ($collection->getNewEmptyItem()->isDeveloperModeOn()) {
+            $this->messageManager->addErrorMessage(__('Developer Mode is enabled, so emails are not sent. Set Developer Mode to No to resend emails.'));
+            return $this->resultFactory->create(ResultFactory::TYPE_REDIRECT)->setPath('mt_smtp/smtp/log');
+        }
         $resend = 0;
 
         foreach ($collection->getItems() as $item) {

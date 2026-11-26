@@ -16,13 +16,15 @@ define([
 
             if (typeof this.modal[action.rowIndex] === 'undefined') {
                 var row = this.rows[action.rowIndex],
-                    sanitizedContent = DOMPurify.sanitize(row['email_content']),
+                    // content is stored HTML-escaped: decode it (textarea never runs markup), then sanitize
+                    decodedContent = $('<textarea>').html(row['email_content'] || '').text(),
+                    sanitizedContent = DOMPurify.sanitize(decodedContent),
                     modalHtml = '<div>' + sanitizedContent + '</div>';
                 this.modal[action.rowIndex] = $('<div>')
                     .html(modalHtml)
                     .modal({
                         type: 'slide',
-                        title: row['subject'],
+                        title: $('<div>').text(row['subject'] || '').html(),
                         innerScroll: true,
                         buttons: []
                     });

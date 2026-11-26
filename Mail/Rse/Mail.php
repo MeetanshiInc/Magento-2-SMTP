@@ -168,7 +168,8 @@ class Mail
                 unset($options['ssl']);
             }
 
-            unset($options['type']);
+            // No authentication (NONE): Laminas does not accept a username/password without a connection class
+            unset($options['type'], $options['username'], $options['password']);
 
             $this->_transport = new Smtp(new SmtpOptions($options));
         }

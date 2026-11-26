@@ -44,6 +44,7 @@ define([
                     password: $(this.options.passwordVal).val(),
                     returnpath: $(this.options.rerutnPath).val()
                 },
+                type: 'POST',
                 dataType: 'json',
                 showLoader: true,
                 success: function (result) {

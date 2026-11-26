@@ -13,6 +13,12 @@ use Meetanshi\SMTP\Model\LogsFactory as ELogs;
 class Delete extends Action
 {
     /**
+     * Authorization level of a basic admin session
+     *
+     * @see _isAllowed()
+     */
+    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::log';
+    /**
      * @var ELogs
      */
     protected $logFactory;

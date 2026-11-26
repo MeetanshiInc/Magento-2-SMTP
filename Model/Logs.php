@@ -20,6 +20,11 @@ use Meetanshi\SMTP\Model\Source\Status;
 class Logs extends AbstractModel
 {
     /**
+     * Placeholder stored instead of secret link values
+     */
+    public const MASKED_VALUE = '[hidden]';
+
+    /**
      * @var TransportBuilder
      */
     protected $_transportBuilder;
@@ -125,8 +130,63 @@ class Logs extends AbstractModel
             $this->setBcc(implode(',', $bccEmails));
         }
 
-        $content = $message->getBody()->bodyToString();
-        $this->setEmailContent($content);
+        // Store the decoded HTML (escaped like the Laminas path), not the quoted-printable transfer encoding.
+        $this->setEmailContent(htmlspecialchars($this->maskSensitiveData($this->getSymfonyBodyContent($message->getBody()))));
+    }
+
+    /**
+     * Hide secret values in links (password reset tokens, confirmation keys/codes) so the log cannot be used to
+     * take over an account. Example: ...createPassword/?token=abc123 becomes ...createPassword/?token=[hidden]
+     *
+     * @param string $content
+     * @return string
+     */
+    private function maskSensitiveData(string $content): string
+    {
+        return (string) preg_replace(
+            '/([?&;](?:token|key|code|hash|password|secret)=)[^&"\'\s<>]+/i',
+            '$1' . self::MASKED_VALUE,
+            $content
+        );
+    }
+
+    /**
+     * Get the decoded body of a Symfony message part (HTML preferred, attachments skipped)
+     *
+     * @param object $part
+     * @return string
+     */
+    private function getSymfonyBodyContent($part): string
+    {
+        if ($part instanceof \Symfony\Component\Mime\Part\AbstractMultipartPart) {
+            $fallback = '';
+            foreach ($part->getParts() as $child) {
+                $content = $this->getSymfonyBodyContent($child);
+                if ($content === '') {
+                    continue;
+                }
+                if ($child instanceof \Symfony\Component\Mime\Part\TextPart
+                    && $child->getMediaSubtype() === 'html'
+                ) {
+                    return $content;
+                }
+                if ($fallback === '') {
+                    $fallback = $content;
+                }
+            }
+
+            return $fallback;
+        }
+
+        if ($part instanceof \Symfony\Component\Mime\Part\DataPart) {
+            return '';
+        }
+
+        if ($part instanceof \Symfony\Component\Mime\Part\TextPart) {
+            return $part->getBody();
+        }
+
+        return quoted_printable_decode((string) $part->bodyToString());
     }
 
     /**
@@ -168,7 +228,7 @@ class Logs extends AbstractModel
         $this->setBcc(implode(',', $bccArr));
 
         $messageBody = quoted_printable_decode($message->getBodyText());
-        $content = htmlspecialchars($messageBody);
+        $content = htmlspecialchars($this->maskSensitiveData($messageBody));
         $this->setEmailContent($content);
     }
 
@@ -177,8 +237,12 @@ class Logs extends AbstractModel
      */
     public function resendEmail()
     {
+        if ($this->isDeveloperModeOn()) {
+            return false;
+        }
+
         $data = $this->getData();
-        $data['email_content'] = htmlspecialchars_decode($data['email_content']);
+        $data['email_content'] = htmlspecialchars_decode((string) ($data['email_content'] ?? ''));
 
         $dataObject = new DataObject();
         $dataObject->setData($data);
@@ -187,7 +251,7 @@ class Logs extends AbstractModel
             'name' => trim($data['name'] ?? ''),
             'email' => trim($data['sender'] ?? ''),
         ];
-        $recipient = $this->extractEmailInfo($data['recipient']);
+        $recipient = $this->extractEmailInfo((string) ($data['recipient'] ?? ''));
         foreach ($recipient as $name => $email) {
             $this->_transportBuilder->addTo($email);
         }
@@ -233,12 +297,23 @@ class Logs extends AbstractModel
     }
 
     /**
+     * Is SMTP Developer Mode on (emails are logged but not delivered)
+     *
+     * @return bool
+     */
+    public function isDeveloperModeOn(): bool
+    {
+        return (bool) $this->mailResource->isDeveloperMode(Store::DEFAULT_STORE_ID);
+    }
+
+    /**
      * @param $emailList
      * @return array
      */
     protected function extractEmailInfo($emailList)
     {
         $data = [];
+        $emailList = (string) $emailList;
         if (strpos($emailList, ' <') !== false) {
             $emails = explode(' <', $emailList);
             $name = '';

@@ -13,6 +13,11 @@ define([
             if (lbl !== '') {
                 if (data.status == 1) {
                     lbl = '<span class="mt-smtp-grid-notice grid-severity-notice"><span>' + lbl + '</span></span>';
+                } else if (data.status == 2) {
+                    lbl = '<span class="mt-smtp-grid-notice mt-smtp-grid-developer"><span>' + lbl + '</span></span>';
+                } else if (data.status == 3) {
+                    lbl = '<span class="mt-smtp-grid-notice mt-smtp-grid-developer mt-smtp-grid-blocked">'
+                        + '<span>' + lbl + '</span></span>';
                 } else {
                     lbl = '<span class="mt-smtp-grid-notice grid-severity-minor"><span>' + lbl + '</span></span>';
                 }

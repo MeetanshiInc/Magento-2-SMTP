@@ -15,6 +15,12 @@ use Meetanshi\SMTP\Model\LogsFactory;
 class Email extends Action
 {
     /**
+     * Authorization level of a basic admin session
+     *
+     * @see _isAllowed()
+     */
+    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::log';
+    /**
      * @var TransportBuilder
      */
     protected $_transportBuilder;
@@ -76,6 +82,10 @@ class Email extends Action
         }
 
         $email = $this->logFactory->create()->load($logId);
+        if ($email->isDeveloperModeOn()) {
+            $this->messageManager->addErrorMessage(__('Developer Mode is enabled, so emails are not sent. Set Developer Mode to No to resend emails.'));
+            return $this->_redirect('*/smtp/log');
+        }
         if ($email->resendEmail()) {
             $this->messageManager->addSuccessMessage(__('Email re-sent successfully!'));
         } else {

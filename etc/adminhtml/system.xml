@@ -21,7 +21,7 @@
                         <field id="enabled">1</field>
                     </depends>
                 </field>
-                <field id="clean_email" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="clean_email" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Clean Email Log Every</label>
                     <validate>validate-number validate-zero-or-greater validate-digits</validate>
                     <comment>Enter Day(s). If empty or zero, the Email log will not be cleaned.</comment>
@@ -31,7 +31,7 @@
                 </field>
                 <field id="blocklist_emails" translate="label" type="textarea" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Block List Emails</label>
-                    <comment>Comma separated list of email addresses in each line.</comment>
+                    <comment>Emails to these addresses are never sent. Enter one address per line, or separate them with commas. Upper/lower case does not matter. Blocked emails are saved in the Emails Log with status "Blocked".</comment>
                     <depends>
                         <field id="enabled">1</field>
                     </depends>
@@ -96,7 +96,7 @@
                 <field id="developer_mode" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Developer Mode</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>If Enable, Magento will not delivery any email to receiver. This is useful for developers.</comment>
+                    <comment>If enabled, emails are not delivered to anyone. They are still saved in the Emails Log (status "Not Sent (Developer Mode)") so you can check them. Useful for development and testing.</comment>
                 </field>
                 <depends>
                     <field id="smtp/general/enabled">1</field>

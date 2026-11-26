@@ -14,6 +14,12 @@ use Meetanshi\SMTP\Model\ResourceModel\Logs\CollectionFactory;
 class MassDelete extends Action
 {
     /**
+     * Authorization level of a basic admin session
+     *
+     * @see _isAllowed()
+     */
+    public const ADMIN_RESOURCE = 'Meetanshi_SMTP::log';
+    /**
      * @var Filter
      */
     protected $filter;

@@ -2,6 +2,8 @@
 
 namespace Meetanshi\SMTP\Ui\Component\Listing\Column;
 
+use Magento\Framework\App\ObjectManager;
+use Magento\Framework\Escaper;
 use Magento\Framework\UrlInterface;
 use Magento\Framework\View\Element\UiComponent\ContextInterface;
 use Magento\Framework\View\Element\UiComponentFactory;
@@ -15,23 +17,31 @@ class Actions extends Column
     private $urlBuilder;
 
     /**
+     * @var Escaper
+     */
+    private $escaper;
+
+    /**
      * Actions constructor.
      * @param ContextInterface $context
      * @param UiComponentFactory $uiComponentFactory
      * @param UrlInterface $urlBuilder
      * @param array $components
      * @param array $data
+     * @param Escaper|null $escaper
      */
     public function __construct(
         ContextInterface $context,
         UiComponentFactory $uiComponentFactory,
         UrlInterface $urlBuilder,
         array $components = [],
-        array $data = []
+        array $data = [],
+        ?Escaper $escaper = null
     ) {
         parent::__construct($context, $uiComponentFactory, $components, $data);
 
         $this->urlBuilder = $urlBuilder;
+        $this->escaper = $escaper ?: ObjectManager::getInstance()->get(Escaper::class);
     }
 
     /**
@@ -66,7 +76,7 @@ class Actions extends Column
                             'label' => __('Resend'),
                             'confirm' => [
                                 'title' => __('Resend Email'),
-                                'message' => __('Are you sure you want to resend the email <strong>"%1"</strong>?', $item['subject']),
+                                'message' => __('Are you sure you want to resend the email <strong>"%1"</strong>?', $this->escaper->escapeHtml($item['subject'])),
                             ],
                         ],
                         'delete' => [
